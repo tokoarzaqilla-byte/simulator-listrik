@@ -52,7 +52,7 @@ function buatKomponen(nama, tipe) {
     y: 15
   });
 
-  // 🔴🔵 PIN
+  // PIN
   var pin1 = new Konva.Circle({
     x: 0,
     y: 25,
@@ -116,7 +116,7 @@ stage.on('click', function(e) {
 });
 
 // =====================
-// BUAT KABEL
+// BUAT KABEL + NODE
 // =====================
 stage.on('click', function(e) {
 
@@ -137,11 +137,33 @@ stage.on('click', function(e) {
 
     layerKabel.add(garis);
 
-    daftarKabel.push({
+    // node tengah
+    var control = new Konva.Circle({
+      radius: 6,
+      fill: 'orange',
+      draggable: true
+    });
+
+    layerKomponen.add(control);
+
+    var p1 = pinAwal.getAbsolutePosition();
+    var p2 = e.target.getAbsolutePosition();
+
+    control.position({
+      x: (p1.x + p2.x) / 2,
+      y: (p1.y + p2.y) / 2
+    });
+
+    var dataKabel = {
       dari: pinAwal,
       ke: e.target,
-      garis: garis
-    });
+      garis: garis,
+      control: control
+    };
+
+    daftarKabel.push(dataKabel);
+
+    control.on('dragmove', updateKabel);
 
     pinAwal.fill('black');
     pinAwal = null;
@@ -152,50 +174,33 @@ stage.on('click', function(e) {
 });
 
 // =====================
-// CEK TABRAKAN
-// =====================
-function kenaKomponen(x, y) {
-  return semuaKomponen.some(k => {
-    var box = k.getClientRect();
-    return (
-      x > box.x &&
-      x < box.x + box.width &&
-      y > box.y &&
-      y < box.y + box.height
-    );
-  });
-}
-
-// =====================
-// ROUTING KABEL
-// =====================
-function buatJalur(p1, p2) {
-
-  var offset = 50;
-  var midX = (p1.x + p2.x) / 2;
-
-  if (kenaKomponen(midX, p1.y) || kenaKomponen(midX, p2.y)) {
-    midX += offset;
-  }
-
-  return [
-    p1.x, p1.y,
-    midX, p1.y,
-    midX, p2.y,
-    p2.x, p2.y
-  ];
-}
-
-// =====================
-// UPDATE KABEL
+// UPDATE KABEL (ANTI TEMBUS)
 // =====================
 function updateKabel() {
+
   daftarKabel.forEach(k => {
 
     var p1 = k.dari.getAbsolutePosition();
     var p2 = k.ke.getAbsolutePosition();
+    var c = k.control.position();
 
-    k.garis.points(buatJalur(p1, p2));
+    var offset = 40;
+
+    var keluar1 = (p1.x < c.x) ? offset : -offset;
+    var keluar2 = (p2.x < c.x) ? offset : -offset;
+
+    var x1 = p1.x + keluar1;
+    var x2 = p2.x + keluar2;
+
+    k.garis.points([
+      p1.x, p1.y,
+      x1, p1.y,
+      x1, c.y,
+      c.x, c.y,
+      x2, c.y,
+      x2, p2.y,
+      p2.x, p2.y
+    ]);
   });
 
   layerKabel.draw();
@@ -204,18 +209,35 @@ function updateKabel() {
 stage.on('dragmove', updateKabel);
 
 // =====================
-// LOGIKA LISTRIK DASAR
+// LOGIKA LISTRIK
 // =====================
 function cekRangkaian() {
+
+  semuaKomponen.forEach(k => {
+    if (k.tipe === "lamp") {
+      k.state = false;
+    }
+  });
 
   var adaSumber = semuaKomponen.some(k => k.tipe === "power" && k.state);
   var saklarOn = semuaKomponen.some(k => k.tipe === "switch" && k.state);
 
-  semuaKomponen.forEach(k => {
-    if (k.tipe === "lamp") {
-      k.state = (adaSumber && saklarOn);
-      k.children[0].fill(k.state ? "yellow" : "lightgray");
+  semuaKomponen.forEach(lamp => {
+
+    if (lamp.tipe !== "lamp") return;
+
+    var terhubung = daftarKabel.some(k => {
+      return (
+        k.dari.getParent() === lamp ||
+        k.ke.getParent() === lamp
+      );
+    });
+
+    if (adaSumber && saklarOn && terhubung) {
+      lamp.state = true;
     }
+
+    lamp.children[0].fill(lamp.state ? "yellow" : "lightgray");
   });
 
   layerKomponen.draw();
