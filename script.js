@@ -4,14 +4,18 @@ var stage = new Konva.Stage({
   height: window.innerHeight
 });
 
-var layer = new Konva.Layer();
-stage.add(layer);
+// 🔥 PISAH LAYER
+var layerKabel = new Konva.Layer();
+var layerKomponen = new Konva.Layer();
+
+stage.add(layerKabel);
+stage.add(layerKomponen);
 
 var daftarKabel = [];
 var pinAwal = null;
 var semuaKomponen = [];
 
-// posisi otomatis (biar tidak numpuk)
+// posisi otomatis
 var posX = 50;
 var posY = 150;
 
@@ -26,7 +30,6 @@ function buatKomponen(nama, tipe) {
     draggable: true
   });
 
-  // geser posisi berikutnya
   posX += 150;
   if (posX > window.innerWidth - 150) {
     posX = 50;
@@ -72,8 +75,8 @@ function buatKomponen(nama, tipe) {
 
   semuaKomponen.push(group);
 
-  layer.add(group);
-  layer.draw();
+  layerKomponen.add(group);
+  layerKomponen.draw();
 
   return group;
 }
@@ -95,7 +98,24 @@ function tambahLampu() {
 }
 
 // =====================
-// BUAT KABEL (SMART)
+// KLIK SAKLAR (FIX)
+// =====================
+stage.on('click', function(e) {
+
+  var obj = e.target.getParent();
+
+  if (obj && obj.tipe === "switch") {
+    obj.state = !obj.state;
+
+    obj.children[0].fill(obj.state ? "green" : "lightgray");
+    layerKomponen.draw();
+
+    cekRangkaian();
+  }
+});
+
+// =====================
+// BUAT KABEL
 // =====================
 stage.on('click', function(e) {
 
@@ -104,16 +124,15 @@ stage.on('click', function(e) {
   if (!pinAwal) {
     pinAwal = e.target;
     e.target.fill('red');
-    layer.draw();
+    layerKomponen.draw();
   } else {
 
     var garis = new Konva.Line({
       stroke: 'blue',
-      strokeWidth: 3,
-      lineJoin: 'round'
+      strokeWidth: 3
     });
 
-    layer.add(garis);
+    layerKabel.add(garis);
 
     daftarKabel.push({
       dari: pinAwal,
@@ -125,11 +144,12 @@ stage.on('click', function(e) {
     pinAwal = null;
 
     updateKabel();
+    cekRangkaian();
   }
 });
 
 // =====================
-// ROUTING KABEL (ANTI NEMBUS)
+// ROUTING
 // =====================
 function buatJalur(p1, p2) {
   var midX = (p1.x + p2.x) / 2;
@@ -151,15 +171,34 @@ function updateKabel() {
     var p1 = k.dari.getAbsolutePosition();
     var p2 = k.ke.getAbsolutePosition();
 
-    var jalur = buatJalur(p1, p2);
-
-    k.garis.points(jalur);
+    k.garis.points(buatJalur(p1, p2));
   });
 
-  layer.draw();
+  layerKabel.draw();
 }
 
-// ikut gerak
-stage.on('dragmove', function() {
-  updateKabel();
-});
+stage.on('dragmove', updateKabel);
+
+// =====================
+// LOGIKA LISTRIK (SIMPLE)
+// =====================
+function cekRangkaian() {
+
+  semuaKomponen.forEach(k => {
+    if (k.tipe === "lamp") {
+      k.state = false;
+    }
+  });
+
+  var adaSumber = semuaKomponen.some(k => k.tipe === "power" && k.state);
+  var saklarOn = semuaKomponen.some(k => k.tipe === "switch" && k.state);
+
+  semuaKomponen.forEach(k => {
+    if (k.tipe === "lamp") {
+      k.state = (adaSumber && saklarOn);
+      k.children[0].fill(k.state ? "yellow" : "lightgray");
+    }
+  });
+
+  layerKomponen.draw();
+}
