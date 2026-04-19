@@ -4,7 +4,7 @@ var stage = new Konva.Stage({
   height: window.innerHeight
 });
 
-// 🔥 PISAH LAYER
+// layer
 var layerKabel = new Konva.Layer();
 var layerKomponen = new Konva.Layer();
 
@@ -12,8 +12,8 @@ stage.add(layerKabel);
 stage.add(layerKomponen);
 
 var daftarKabel = [];
-var pinAwal = null;
 var semuaKomponen = [];
+var pinAwal = null;
 
 // posisi otomatis
 var posX = 50;
@@ -52,11 +52,12 @@ function buatKomponen(nama, tipe) {
     y: 15
   });
 
+  // 🔴🔵 PIN
   var pin1 = new Konva.Circle({
     x: 0,
     y: 25,
     radius: 6,
-    fill: 'black',
+    fill: (tipe === "power") ? "red" : "black",
     name: 'pin'
   });
 
@@ -64,7 +65,7 @@ function buatKomponen(nama, tipe) {
     x: 100,
     y: 25,
     radius: 6,
-    fill: 'black',
+    fill: (tipe === "power") ? "blue" : "black",
     name: 'pin'
   });
 
@@ -98,7 +99,7 @@ function tambahLampu() {
 }
 
 // =====================
-// KLIK SAKLAR (FIX)
+// KLIK SAKLAR
 // =====================
 stage.on('click', function(e) {
 
@@ -129,7 +130,9 @@ stage.on('click', function(e) {
 
     var garis = new Konva.Line({
       stroke: 'blue',
-      strokeWidth: 3
+      strokeWidth: 3,
+      lineJoin: 'round',
+      lineCap: 'round'
     });
 
     layerKabel.add(garis);
@@ -149,10 +152,31 @@ stage.on('click', function(e) {
 });
 
 // =====================
-// ROUTING
+// CEK TABRAKAN
+// =====================
+function kenaKomponen(x, y) {
+  return semuaKomponen.some(k => {
+    var box = k.getClientRect();
+    return (
+      x > box.x &&
+      x < box.x + box.width &&
+      y > box.y &&
+      y < box.y + box.height
+    );
+  });
+}
+
+// =====================
+// ROUTING KABEL
 // =====================
 function buatJalur(p1, p2) {
+
+  var offset = 50;
   var midX = (p1.x + p2.x) / 2;
+
+  if (kenaKomponen(midX, p1.y) || kenaKomponen(midX, p2.y)) {
+    midX += offset;
+  }
 
   return [
     p1.x, p1.y,
@@ -180,15 +204,9 @@ function updateKabel() {
 stage.on('dragmove', updateKabel);
 
 // =====================
-// LOGIKA LISTRIK (SIMPLE)
+// LOGIKA LISTRIK DASAR
 // =====================
 function cekRangkaian() {
-
-  semuaKomponen.forEach(k => {
-    if (k.tipe === "lamp") {
-      k.state = false;
-    }
-  });
 
   var adaSumber = semuaKomponen.some(k => k.tipe === "power" && k.state);
   var saklarOn = semuaKomponen.some(k => k.tipe === "switch" && k.state);
