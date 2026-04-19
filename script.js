@@ -9,17 +9,29 @@ stage.add(layer);
 
 var daftarKabel = [];
 var pinAwal = null;
+var semuaKomponen = [];
+
+// posisi otomatis (biar tidak numpuk)
+var posX = 50;
+var posY = 150;
 
 // =====================
 // BUAT KOMPONEN
 // =====================
-function buatKomponen(x, y, nama, tipe) {
+function buatKomponen(nama, tipe) {
 
   var group = new Konva.Group({
-    x: x,
-    y: y,
+    x: posX,
+    y: posY,
     draggable: true
   });
+
+  // geser posisi berikutnya
+  posX += 150;
+  if (posX > window.innerWidth - 150) {
+    posX = 50;
+    posY += 100;
+  }
 
   var rect = new Konva.Rect({
     width: 100,
@@ -37,7 +49,6 @@ function buatKomponen(x, y, nama, tipe) {
     y: 15
   });
 
-  // PIN kiri
   var pin1 = new Konva.Circle({
     x: 0,
     y: 25,
@@ -46,7 +57,6 @@ function buatKomponen(x, y, nama, tipe) {
     name: 'pin'
   });
 
-  // PIN kanan
   var pin2 = new Konva.Circle({
     x: 100,
     y: 25,
@@ -60,6 +70,8 @@ function buatKomponen(x, y, nama, tipe) {
   group.tipe = tipe;
   group.state = false;
 
+  semuaKomponen.push(group);
+
   layer.add(group);
   layer.draw();
 
@@ -67,40 +79,38 @@ function buatKomponen(x, y, nama, tipe) {
 }
 
 // =====================
-// TAMBAH KOMPONEN
+// TOMBOL
 // =====================
 function tambahSumber() {
-  var s = buatKomponen(50, 150, "Sumber", "power");
+  var s = buatKomponen("Sumber", "power");
   s.state = true;
 }
 
 function tambahSaklar() {
-  buatKomponen(200, 150, "Saklar", "switch");
+  buatKomponen("Saklar", "switch");
 }
 
 function tambahLampu() {
-  buatKomponen(350, 150, "Lampu", "lamp");
+  buatKomponen("Lampu", "lamp");
 }
 
 // =====================
-// BUAT KABEL (FIX)
+// BUAT KABEL (SMART)
 // =====================
 stage.on('click', function(e) {
 
   if (!e.target.hasName('pin')) return;
 
-  // klik pertama
   if (!pinAwal) {
     pinAwal = e.target;
-    e.target.fill('red'); // tanda dipilih
+    e.target.fill('red');
     layer.draw();
-  } 
-  // klik kedua
-  else {
+  } else {
 
     var garis = new Konva.Line({
       stroke: 'blue',
-      strokeWidth: 3
+      strokeWidth: 3,
+      lineJoin: 'round'
     });
 
     layer.add(garis);
@@ -111,7 +121,6 @@ stage.on('click', function(e) {
       garis: garis
     });
 
-    // reset warna pin
     pinAwal.fill('black');
     pinAwal = null;
 
@@ -120,7 +129,21 @@ stage.on('click', function(e) {
 });
 
 // =====================
-// UPDATE POSISI KABEL
+// ROUTING KABEL (ANTI NEMBUS)
+// =====================
+function buatJalur(p1, p2) {
+  var midX = (p1.x + p2.x) / 2;
+
+  return [
+    p1.x, p1.y,
+    midX, p1.y,
+    midX, p2.y,
+    p2.x, p2.y
+  ];
+}
+
+// =====================
+// UPDATE KABEL
 // =====================
 function updateKabel() {
   daftarKabel.forEach(k => {
@@ -128,13 +151,15 @@ function updateKabel() {
     var p1 = k.dari.getAbsolutePosition();
     var p2 = k.ke.getAbsolutePosition();
 
-    k.garis.points([p1.x, p1.y, p2.x, p2.y]);
+    var jalur = buatJalur(p1, p2);
+
+    k.garis.points(jalur);
   });
 
   layer.draw();
 }
 
-// kabel ikut gerak saat drag
+// ikut gerak
 stage.on('dragmove', function() {
   updateKabel();
 });
